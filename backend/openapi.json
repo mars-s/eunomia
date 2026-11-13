@@ -1398,6 +1398,264 @@
         ]
       }
     },
+    "/api/connectors/composio/begin": {
+      "post": {
+        "tags": [
+          "connectors"
+        ],
+        "operationId": "composioBegin",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/connectors/composio/callback": {
+      "post": {
+        "tags": [
+          "connectors"
+        ],
+        "operationId": "composioCallback",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Callback"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/connectors/composio/disconnect": {
+      "post": {
+        "tags": [
+          "connectors"
+        ],
+        "operationId": "composioDisconnect",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/connectors/composio/manage": {
+      "post": {
+        "tags": [
+          "connectors"
+        ],
+        "operationId": "composioManage",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Manage"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/connectors/composio/selection": {
+      "post": {
+        "tags": [
+          "connectors"
+        ],
+        "operationId": "composioSelection",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Choices"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/connectors/composio/status": {
+      "get": {
+        "tags": [
+          "connectors"
+        ],
+        "operationId": "composioStatus",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/connectors/pocketai/all": {
       "get": {
         "tags": [
@@ -2150,6 +2408,42 @@
           },
           {
             "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/diagnostics": {
+      "post": {
+        "tags": [
+          "support"
+        ],
+        "summary": "Download a privacy-filtered support zip (instance admin, browser session)",
+        "operationId": "downloadDiagnostics",
+        "responses": {
+          "200": {
+            "description": "ZIP, capped at 25 MiB",
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "description": "",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
           }
         ]
       }
@@ -7727,6 +8021,189 @@
         ]
       }
     },
+    "/api/vaults/{vault_id}/ontology/objects": {
+      "get": {
+        "tags": [
+          "vaults"
+        ],
+        "operationId": "listOntologyObjects",
+        "parameters": [
+          {
+            "name": "vault_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "descending",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "filter",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "op",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "value",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/api/vaults/{vault_id}/ontology/objects/{id}": {
+      "get": {
+        "tags": [
+          "vaults"
+        ],
+        "operationId": "getOntologyObject",
+        "parameters": [
+          {
+            "name": "vault_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "default": {
+            "description": "Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookie": []
+          },
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
     "/api/vaults/{vault_id}/ontology/properties/decide": {
       "post": {
         "tags": [
@@ -8755,6 +9232,21 @@
           }
         }
       },
+      "Callback": {
+        "type": "object",
+        "required": [
+          "state",
+          "code"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          }
+        }
+      },
       "Capsule": {
         "type": "object",
         "required": [
@@ -8913,6 +9405,26 @@
           },
           "ok": {
             "type": "boolean"
+          }
+        }
+      },
+      "Choices": {
+        "type": "object",
+        "required": [
+          "apps"
+        ],
+        "properties": {
+          "apps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Selection"
+            }
+          },
+          "vault": {
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -11680,6 +12192,17 @@
           }
         }
       },
+      "Manage": {
+        "type": "object",
+        "required": [
+          "toolkit"
+        ],
+        "properties": {
+          "toolkit": {
+            "type": "string"
+          }
+        }
+      },
       "MappedType": {
         "type": "object",
         "description": "What became of one record type.",
@@ -13874,6 +14397,34 @@
           }
         }
       },
+      "Selection": {
+        "type": "object",
+        "required": [
+          "toolkit",
+          "account"
+        ],
+        "properties": {
+          "account": {
+            "type": "string"
+          },
+          "folder": {
+            "type": "string"
+          },
+          "phone_number_id": {
+            "type": "string"
+          },
+          "reference": {
+            "type": "string"
+          },
+          "repo": {
+            "type": "string"
+          },
+          "toolkit": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "SessionOut": {
         "type": "object",
         "required": [
@@ -14514,6 +15065,34 @@
             ],
             "format": "int64"
           },
+          "message": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider_skipped": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "retry_after_secs": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0
+          },
+          "retry_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "skipped": {
             "type": [
               "integer",
@@ -14529,7 +15108,16 @@
               "string",
               "null"
             ],
-            "description": "`already_running`, `queued`, or `offline` (the connectivity check found no internet; nothing was attempted)."
+            "description": "`partial`, `already_running`, `queued`, or `offline` (the connectivity check found no internet; nothing was attempted)."
+          },
+          "warnings": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
           },
           "written": {
             "type": [
@@ -14545,7 +15133,8 @@
         "required": [
           "cursor",
           "last_error",
-          "consecutive_failures"
+          "consecutive_failures",
+          "last_report"
         ],
         "properties": {
           "consecutive_failures": {
@@ -14564,6 +15153,7 @@
               "null"
             ]
           },
+          "last_report": {},
           "last_run": {
             "type": [
               "string",

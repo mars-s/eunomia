@@ -35,6 +35,7 @@ use crate::sources::up_bank::UpBankSource;
 /// Every source. Each has a connector kind in `connectors::service::CONNECTOR_KINDS`.
 pub fn all() -> Vec<Arc<dyn Source>> {
     vec![
+        Arc::new(super::composio::ComposioSource),
         Arc::new(UpBankSource) as Arc<dyn Source>,
         Arc::new(HeyPocketSource),
         Arc::new(GitHubSource),
@@ -220,21 +221,43 @@ pub fn ctx<'a>(db: &'a OrgDb, encryption_key: &'a str, owner: &'a RecordId) -> S
 }
 
 /// Fetch one connection ([`sync_key`]) for `owner` and ingest what came back. Returns
-/// `(report, next_cursor)`.
+/// `(ingest_report, fetch_result)`, retaining the checkpoint, partial state and warnings.
 pub async fn run_sync(
     state: &OrgState,
     owner: &RecordId,
     key: &str,
     cursor: Option<String>,
-) -> AppResult<(IngestReport, Option<String>)> {
+) -> AppResult<(IngestReport, super::base::SyncResult)> {
     let (src, row) = connection(&state.db, owner, key)
         .await?
         .ok_or_else(|| AppError::coded(ErrorCode::SourceNotFound, format!("no source {key:?}")))?;
     let row = row.as_ref();
     crate::secrets::connector::with_connection(state, owner, row, |conn| async move {
-        let result = src.fetch(&conn, cursor).await?;
-        let report = ingest_via(state, owner, &result.records, src.as_ref(), row).await?;
-        Ok((report, result.cursor))
+        let mut result = src.fetch(&conn, cursor).await?;
+        let report = if src.key() == "composio" {
+            let publishing = state.composio_publishing.connection(&state.db, owner);
+            let _publishing = publishing.lock().await;
+            let current = crate::connectors::composio::storage::load(&state.db, owner).await?;
+            let credentials = conn_for(&state.settings.encryption_key, Some(&current))?;
+            if !current.enabled || credentials.credentials["access_token"] != conn.credentials["access_token"] {
+                return Err(AppError::bad_request("Composio changed during sync. Retry with the current account."));
+            }
+            super::composio::store_documents(state, owner, &current, &mut result.records).await?;
+            // Each ingest commits records and queues enrichment. Disconnect waits for this gate.
+            let mut report = IngestReport { source: src.key().into(), written: 0, skipped: 0, failed: 0, errors: Vec::new() };
+            for raw in &result.records {
+                crate::connectors::composio::storage::ensure_active(&state.db, owner, &current).await?;
+                let one = ingest_via(state, owner, std::slice::from_ref(raw), src.as_ref(), Some(&current)).await?;
+                report.written += one.written;
+                report.skipped += one.skipped;
+                report.failed += one.failed;
+                report.errors.extend(one.errors);
+            }
+            report
+        } else {
+            ingest_via(state, owner, &result.records, src.as_ref(), row).await?
+        };
+        Ok((report, result))
     }).await
 }
 

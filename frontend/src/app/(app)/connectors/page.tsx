@@ -1,4 +1,7 @@
 "use client";
+import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
+
+import ComposioCard from "@/components/ComposioCard";
 
 import SyncSettings from "@/components/SyncSettings";
 import { Fragment, useState } from "react";
@@ -139,7 +142,7 @@ export default function ConnectorsPage() {
   }
   // Sources that hold records but belong to no connector (seeded demo data).
   for (const s of sourceRows) {
-    if (!kindForSource(s.key) && isLiveSource(s)) {
+    if (s.key !== "composio" && !kindForSource(s.key) && isLiveSource(s)) {
       connected.push({ id: s.key, kind: null, label: s.label, account: "", addAfter: false, status: "demo", source: s, href: `/connectors/${s.key}` });
     }
   }
@@ -167,6 +170,8 @@ export default function ConnectorsPage() {
         title="Connected sources"
         intro="Bring emails, meeting notes and other information into Eunomia. Sign-ins are stored encrypted."
       />
+
+      <ComposioCard />
 
       <div className="flex items-center gap-2 flex-wrap">
         <div className="field flex items-center gap-2 h-10 px-3 w-full sm:w-72">
@@ -257,12 +262,12 @@ export default function ConnectorsPage() {
                           )}
                         </span>
                       </span>
-                      <span title={s?.sync_status.last_error || undefined}>
+                      <span title={s?.sync_status.last_error || s?.sync_status.last_report?.message || undefined}>
                         <StatusLabel tone={toneFromVar(health.tone)}>{health.label}</StatusLabel>
                       </span>
                       <span className="hidden md:block font-mono text-right">{s ? s.record_count.toLocaleString() : "n/a"}</span>
                       <span className="hidden md:block text-[13px]" style={{ color: fails ? "var(--critical)" : "var(--ink-dim)" }}>
-                        {fails ? `${fails} failed in a row` : s ? relativeTime(s.sync_status.last_ok) : "n/a"}
+                        {fails ? `${fails} failed in a row` : s?.sync_status.last_report?.message || (s ? relativeTime(s.sync_status.last_ok) : "n/a")}
                       </span>
                       <span
                         className="hidden md:block text-[13px] truncate"
@@ -397,15 +402,5 @@ function CatalogueList({ kinds }: { kinds: Connector["kind"][] }) {
 }
 
 function SkeletonRows({ count }: { count: number }) {
-  return (
-    <div className="hairline-rows" aria-hidden>
-      {Array.from({ length: count }, (_, i) => (
-        <div key={i} className="flex items-center gap-3 px-4 h-12">
-          <span className="skeleton w-7 h-7" />
-          <span className="skeleton h-3 w-32" />
-          <span className="skeleton h-3 w-20 ml-auto" />
-        </div>
-      ))}
-    </div>
-  );
+  return <LoadingSkeleton label="Loading connected sources" rows={count} />;
 }
