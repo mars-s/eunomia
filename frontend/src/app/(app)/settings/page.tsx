@@ -1,6 +1,4 @@
 "use client";
-import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
-import { AccessibilitySection } from "./AccessibilitySection";
 
 import ErrorLine, { failure } from "@/components/ErrorLine";
 import { Suspense, useEffect, useRef } from "react";
@@ -12,7 +10,6 @@ import PageHeader from "@/components/ui/PageHeader";
 import { TokensSection } from "./TokensSection";
 import { ConnectedAppsSection } from "./ConnectedAppsSection";
 import { SessionsSection } from "./SessionsSection";
-import { DiagnosticsSection } from "./DiagnosticsSection";
 import { UpdateSection } from "./UpdateSection";
 import { BackupsSection } from "./BackupsSection";
 import { HttpsSection } from "./HttpsSection";
@@ -82,7 +79,17 @@ function Settings() {
         loadError ? (
           <ErrorLine error={loadError} />
         ) : (
-          <LoadingSkeleton label="Loading settings" layout="settings" rows={5} />
+          <div className="flex flex-col lg:flex-row gap-8" aria-hidden>
+            <div className="flex flex-col gap-2 lg:w-[200px]">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <span key={i} className="skeleton h-7 w-full lg:w-40" />
+              ))}
+            </div>
+            <div className="flex-1 flex flex-col gap-3">
+              <span className="skeleton h-4 w-40" />
+              <span className="skeleton h-40 w-full" />
+            </div>
+          </div>
         )
       ) : (
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-10">
@@ -160,10 +167,8 @@ function Settings() {
 
           <div role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`} className="min-w-0 flex-1 max-w-4xl">
             {tab === "apps" && <ConnectedAppsSection />}
-            {tab === "accessibility" && <AccessibilitySection />}
             {tab === "tokens" && <TokensSection />}
             {tab === "sessions" && <SessionsSection />}
-            {tab === "support" && <DiagnosticsSection />}
             {tab === "data" && <DataSection />}
             {tab === "people" && <PeopleSection />}
             {tab === "audit" && <AuditSection />}

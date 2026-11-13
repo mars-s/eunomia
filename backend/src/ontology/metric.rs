@@ -1194,29 +1194,24 @@ pub struct MetricEvalOut {
 }
 
 #[derive(Debug, Deserialize, SurrealValue)]
-pub(super) struct InputRow {
-    pub(super) as_of: Datetime,
-    pub(super) created_at: Datetime,
-    #[serde(default)]
-    #[surreal(default)]
-    pub(super) source: Option<RecordId>,
+struct InputRow {
     entity: RecordId,
-    pub(super) property: RecordId,
+    property: RecordId,
     #[serde(default)]
     #[surreal(default)]
-    pub(super) value_num: Option<f64>,
+    value_num: Option<f64>,
     #[serde(default)]
     #[surreal(default)]
-    pub(super) value_text: Option<String>,
+    value_text: Option<String>,
     #[serde(default)]
     #[surreal(default)]
-    pub(super) value_bool: Option<bool>,
+    value_bool: Option<bool>,
     #[serde(default)]
     #[surreal(default)]
-    pub(super) value_date: Option<Datetime>,
+    value_date: Option<Datetime>,
     #[serde(default)]
     #[surreal(default)]
-    pub(super) unit: Option<String>,
+    unit: Option<String>,
 }
 
 /// One entity's value of one property as of the run.
@@ -1550,16 +1545,11 @@ pub(super) async fn load_values(db: &OrgDb, vault: &RecordId, kind: &Kind, names
     Ok((entities, values))
 }
 
-/// Shared native-datetime selection, including provenance for object profiles.
-pub(super) async fn latest_rows(db: &OrgDb, vault: &RecordId, props: &[RecordId], ids: &[RecordId], as_of: chrono::DateTime<chrono::Utc>) -> AppResult<Vec<InputRow>> {
-    Ok(q::LATEST_VALUES.on(db).bind(("vault", vault.clone())).bind(("ids", ids.to_vec()))
-        .bind(("props", props.to_vec())).bind(("as_of", Datetime::from(as_of))).await?.take(0)?)
-}
-
 pub(super) async fn latest_values(db: &OrgDb, vault: &RecordId, kind: &Kind, names: &BTreeSet<String>, ids: &[RecordId], as_of: chrono::DateTime<chrono::Utc>) -> AppResult<Values> {
     let by_id: HashMap<String, String> = names.iter().map(|n| (property_rid(vault, kind, &PropertyName::parse(n).expect("checked")).to_string(), n.clone())).collect();
     let prop_ids: Vec<RecordId> = names.iter().map(|n| property_rid(vault, kind, &PropertyName::parse(n).expect("checked"))).collect();
-    let rows = latest_rows(db, vault, &prop_ids, ids, as_of).await?;
+    let rows: Vec<InputRow> = q::LATEST_VALUES.on(db).bind(("vault", vault.clone())).bind(("ids", ids.to_vec()))
+        .bind(("props", prop_ids)).bind(("as_of", Datetime::from(as_of))).await?.take(0)?;
     let mut entities: Vec<String> = ids.iter().map(|i| i.to_string()).collect();
     entities.sort();
     let known: HashSet<&String> = entities.iter().collect();
@@ -1593,18 +1583,6 @@ pub(super) struct Prepared {
 
 /// Finds and loads the metric `args` names in `vault` (the caller checked access).
 pub(super) async fn prepare(db: &OrgDb, vault: &RecordId, args: &EvalArgs) -> AppResult<Prepared> {
-    prepare_scoped(db, vault, args, None).await
-}
-
-pub(super) async fn eval_object(db: &OrgDb, vault: &RecordId, args: &EvalArgs, entity: &RecordId) -> AppResult<Value> {
-    let prepared = prepare_scoped(db, vault, args, Some(entity)).await?;
-    let inputs = prepared.plan.properties();
-    let mut out = serde_json::to_value(prepared.run(None)?).map_err(|e|AppError::internal(e.to_string()))?;
-    out["input_properties"] = serde_json::json!(inputs);
-    Ok(out)
-}
-
-async fn prepare_scoped(db: &OrgDb, vault: &RecordId, args: &EvalArgs, entity: Option<&RecordId>) -> AppResult<Prepared> {
     let vault = vault.clone();
     let asked = metric_name(&args.metric)?;
     let row = match args.kind.as_deref().map(str::trim).filter(|k| !k.is_empty()) {
@@ -1738,10 +1716,7 @@ async fn prepare_scoped(db: &OrgDb, vault: &RecordId, args: &EvalArgs, entity: O
         prepared.nothing = true;
         return Ok(prepared);
     }
-    (prepared.entities, prepared.values) = if let Some(id) = entity {
-        prepared.out.expr_words.push_str(", for this object only");
-        (vec![id.to_string()], latest_values(db, &vault, &prepared.kind, &names, std::slice::from_ref(id), as_of).await?)
-    } else { load_values(db, &vault, &prepared.kind, &names, as_of).await? };
+    (prepared.entities, prepared.values) = load_values(db, &vault, &prepared.kind, &names, as_of).await?;
     if let Some(r) = related {
         let kind = prepared.kind.as_str();
         prepared.entities.retain(|e| r.ids.contains(e));

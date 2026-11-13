@@ -1,5 +1,4 @@
 "use client";
-import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
 
 import { useMemo, useState } from "react";
 import { XIcon } from "@phosphor-icons/react/ssr";
@@ -132,7 +131,7 @@ export default function VectorCloud() {
             <ErrorLine error={error} />
           </div>
         ) : !data ? (
-          <LoadingSkeleton label="Loading the memory map" layout="graph" />
+          <div className="absolute inset-4 skeleton" aria-busy="true" aria-label="Loading the memory map" />
         ) : points.length === 0 ? (
           <div className="p-10 text-center text-[13px]" style={{ color: "var(--ink-dim)" }}>
             {picked.length > 1 ? "Nothing saved in these memory spaces yet." : "Nothing saved in this memory space yet."}

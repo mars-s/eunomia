@@ -40,7 +40,6 @@ pub mod sources;
 pub mod state;
 pub mod store;
 pub mod telemetry;
-pub mod diagnostics;
 pub mod tools;
 pub mod tx;
 pub mod usage;
@@ -73,7 +72,7 @@ pub fn app_with(state: AppState, limits: ratelimit::RateConfig) -> axum::Router 
         .allow_credentials(true)
         .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::PUT, Method::DELETE])
         .allow_headers([header::CONTENT_TYPE, header::AUTHORIZATION, HeaderName::from_static("traceparent")])
-        .expose_headers([HeaderName::from_static("x-trace-id"), HeaderName::from_static("x-diagnostics-capped")]);
+        .expose_headers([HeaderName::from_static("x-trace-id")]);
 
     let api = axum::Router::new()
         .route("/openapi.json", axum::routing::get(openapi::openapi_json))
@@ -84,7 +83,6 @@ pub fn app_with(state: AppState, limits: ratelimit::RateConfig) -> axum::Router 
         .merge(routers::admin::router())
         .merge(routers::export::router())
         .merge(routers::debug::router())
-        .merge(routers::diagnostics::router())
         .merge(routers::update::router())
         .merge(routers::https::router())
         .merge(routers::vaults::router())
@@ -92,7 +90,6 @@ pub fn app_with(state: AppState, limits: ratelimit::RateConfig) -> axum::Router 
         .merge(routers::peers::router())
         .merge(routers::changes::router())
         .merge(routers::connectors::router())
-        .merge(routers::composio::router())
         .merge(routers::connectors::snapshot_router())
         .merge(routers::entities::router())
         .merge(routers::tools::router())

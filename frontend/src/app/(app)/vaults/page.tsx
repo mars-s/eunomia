@@ -1,5 +1,4 @@
 "use client";
-import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
 
 import ErrorLine, { failure, type Failure } from "@/components/ErrorLine";
 import Select from "@/components/Select";
@@ -492,7 +491,19 @@ function MergeChips({ from, to }: { from: [string, string]; to: string }) {
 }
 
 function SkeletonRows() {
-  return <LoadingSkeleton label="Loading memory spaces" rows={2} />;
+  return (
+    <div className="ledger hairline-rows" aria-hidden>
+      {[0, 1].map((i) => (
+        <div key={i} className="flex items-center gap-3 px-4 py-4">
+          <div className="flex-1 flex flex-col gap-1.5">
+            <span className="skeleton h-4 w-40" />
+            <span className="skeleton h-3 w-56 max-w-full" />
+          </div>
+          <span className="skeleton h-5 w-24" />
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // Wide screens show the list and the open space side by side; narrow ones show one at a time, with a way back.
@@ -634,7 +645,11 @@ export default function VaultsPage() {
                 }}
               />
             ) : (
-              <LoadingSkeleton label="Loading memory space" layout="detail" />
+              <div className="ledger p-5 flex flex-col gap-3" aria-hidden>
+                <span className="skeleton h-4 w-24" />
+                <span className="skeleton h-5 w-40" />
+                <span className="skeleton h-24 w-full" />
+              </div>
             )}
           </div>
         )}

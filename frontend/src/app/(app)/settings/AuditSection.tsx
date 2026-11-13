@@ -1,5 +1,4 @@
 "use client";
-import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
 
 import ErrorLine, { failure } from "@/components/ErrorLine";
 import { useState } from "react";
@@ -120,7 +119,12 @@ function LogRows({ rows, loading, whoLabel, whatLabel }: { rows: LogRow[]; loadi
 
       <ul className="sm:hidden hairline-rows" aria-busy={loading}>
         {loading
-          ? <li><LoadingSkeleton label="Loading activity" rows={3} /></li>
+          ? [0, 1, 2].map((i) => (
+              <li key={i} className="py-3 flex flex-col gap-1.5" aria-hidden>
+                <span className="skeleton h-4 w-3/4" />
+                <span className="skeleton h-3 w-1/2" />
+              </li>
+            ))
           : rows.map((r) => (
               <li key={r.id} className="py-3 flex flex-col gap-0.5 min-w-0">
                 <span className="text-[14px] break-words">{r.what}</span>

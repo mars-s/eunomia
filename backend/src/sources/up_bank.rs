@@ -78,7 +78,7 @@ impl Source for UpBankSource {
             .or(cursor)
             .unwrap_or(since);
 
-        Ok(SyncResult { records, cursor: Some(newest), ..SyncResult::default() })
+        Ok(SyncResult { records, cursor: Some(newest) })
     }
 
     fn map(&self, raw: &Value) -> Option<Value> {
