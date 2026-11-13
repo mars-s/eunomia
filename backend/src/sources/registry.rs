@@ -220,13 +220,13 @@ pub fn ctx<'a>(db: &'a OrgDb, encryption_key: &'a str, owner: &'a RecordId) -> S
 }
 
 /// Fetch one connection ([`sync_key`]) for `owner` and ingest what came back. Returns
-/// `(ingest_report, fetch_result)`, retaining the checkpoint, partial state and warnings.
+/// `(report, next_cursor)`.
 pub async fn run_sync(
     state: &OrgState,
     owner: &RecordId,
     key: &str,
     cursor: Option<String>,
-) -> AppResult<(IngestReport, super::base::SyncResult)> {
+) -> AppResult<(IngestReport, Option<String>)> {
     let (src, row) = connection(&state.db, owner, key)
         .await?
         .ok_or_else(|| AppError::coded(ErrorCode::SourceNotFound, format!("no source {key:?}")))?;
@@ -234,7 +234,7 @@ pub async fn run_sync(
     crate::secrets::connector::with_connection(state, owner, row, |conn| async move {
         let result = src.fetch(&conn, cursor).await?;
         let report = ingest_via(state, owner, &result.records, src.as_ref(), row).await?;
-        Ok((report, result))
+        Ok((report, result.cursor))
     }).await
 }
 

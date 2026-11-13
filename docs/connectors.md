@@ -11,7 +11,7 @@ Every sync is a `sync` job in the background job queue (see `docs/architecture/j
 | Connector | What it syncs | Credential (where to get it) | Scopes / permissions | Default interval |
 |---|---|---|---|---|
 | Up Bank | Transactions (from 30 days back, then incremental), accounts, categories; webhooks optional | Personal access token: [api.up.com.au](https://api.up.com.au/getting_started) or Up app → Profile → Data sharing | Read-only by design | 15 min |
-| PocketAI (HeyPocket) | Meeting recordings: full transcript with speakers, summary, action items, tags (30 days back, then incremental). Everything Pocket returns is stored whole (below) | API key from your Pocket account's developer settings | Not applicable | 24 h |
+| PocketAI (HeyPocket) | Meeting recordings: full transcript with speakers, summary, action items, tags (30 days back, then incremental). Everything Pocket returns is stored whole (below) | API key from your Pocket account's developer settings |: | 24 h |
 | GitHub | Issues and pull requests you created, are assigned or mentioned in (90 days back, then incremental) | [Fine-grained token](https://github.com/settings/personal-access-tokens/new), or a classic token | Fine-grained: Issues + Pull requests (read) on chosen repos. Classic: `repo` | 15 min |
 | Slack | Messages in channels the app has joined (30 days back, then incremental; thread replies not included) | Bot token `xoxb-…` from your app at [api.slack.com/apps](https://api.slack.com/apps), then `/invite` it to channels | `channels:read`, `channels:history`, `groups:read`, `groups:history` | 15 min |
 | Notion | Pages (title + top-level text) and databases shared with the integration | Internal integration secret from [notion.so/profile/integrations](https://www.notion.so/profile/integrations); add it to pages via ••• → Connections | Read content | 15 min |
@@ -113,39 +113,25 @@ Google has no personal access tokens, and a self-hosted server has no public red
 ### Large Gmail imports and Google rate limits
 
 A large first Gmail import can take several syncs. Eunomia reads up to 200 messages per sync,
-oldest first within the initial listing, at one full-message request per second per connection.
-Unread IDs are saved with the checkpoint. Before listing, Eunomia captures the mailbox history ID.
-Each sync follows [Gmail history](https://developers.google.com/workspace/gmail/api/guides/sync)
-and merges added messages with pending IDs, so backdated imports arriving during recovery are
-included regardless of their internal date. History advances only with the saved pending queue.
-Old 2.2.0 numeric cursors and earlier JSON cursors upgrade through a checkpoint-based relist.
+oldest first, at one full-message request per second per connection. A full batch can take several
+minutes. Unread message IDs are saved
+with the checkpoint, so later syncs continue the backlog without listing it again. Lists request
+500 IDs per page. An incomplete listing never advances the checkpoint past older unread mail.
+If more than 25,000 messages match the initial query, the sync reports the listing limit and
+keeps its checkpoint rather than silently skipping older messages.
 
-Expired history, reported by Google as HTTP 404, triggers a full mailbox relist. This is broader
-than a date-filtered relist because an import can predate the checkpoint. Existing cache writes
-are idempotent, so replay does not create duplicate stored records. Listings request 500 IDs per
-page and must finish within 50 pages. Pending work is capped at 25,000 IDs and the serialised
-cursor at 1 MiB. Exceeding either bound reports an error and keeps the previous checkpoint for
-safe replay. Unread IDs are never truncated to fit. History replaces the growing timestamp
-boundary ID set; old boundary IDs are pruned against the relist and then discarded.
+Google can report rate limits as HTTP 403 as well as 429. Gmail and Calendar retry rate limits
+and temporary provider failures with exponential backoff and random delays, sharing at most four
+retries and ten seconds of retry waiting and request time per sync. A longer `Retry-After` is left
+for the next sync rather than retried early. Other clients using the same Google account can also
+consume its quota.
 
-A pending message returning HTTP 404 or 410 is logged as removed and dropped. Other permanent
-message errors are dropped with a warning, except authentication and permission errors, which
-fail the sync visibly. Three syncs with transient failures on the same ID also drop it with a
-warning on the connection page. Quota pauses do not spend that per-message retry allowance.
-
-Google can report rate limits as HTTP 403 as well as 429. Gmail and Calendar retry quota and
-temporary failures with exponential backoff and jitter, sharing four retries and ten seconds of
-retry waiting and request time per sync. The shared HTTP error classification retains the
-provider's numeric or HTTP-date `Retry-After` for scheduling.
-
-An interrupted sync, including one that fetched zero records, returns explicit partial progress.
-After ingestion succeeds, the scheduler saves the cursor, imported count, pause reason and retry
-time in `last_report`. It clears failure backoff but leaves `last_ok` unchanged. Connected sources
-shows "Rate limited" or "Importing" and the count, for example "rate limited, 12 imported, more
-remaining". Continuation is due after at least 60 seconds, or the provider's longer `Retry-After`,
-using a short scheduling window rather than waiting for the normal poll interval. Calendar saves
-the failed page token and exact original query. Batch and page caps also return partial status.
-A failed ingestion keeps the previous cursor and uses normal failure backoff.
+If a limit persists after some records were fetched, Eunomia keeps that progress. The server log
+says that Gmail is rate limiting the account, how many messages were fetched for import, and that
+the next sync will continue. Calendar saves its next page and original query window. A partial
+sync that saves all fetched records clears failure backoff and continues at the configured sync
+interval. With no progress, or with a hard credentials or permissions error, the sync fails visibly
+and uses the normal 15-minute to 6-hour failure backoff. There is no fixed five-minute retry loop.
 
 The [current Gmail quota table](https://developers.google.com/workspace/gmail/api/reference/quota)
 lists 6,000 quota units per minute per user per project, 5 units for `messages.list`, and 60 for
