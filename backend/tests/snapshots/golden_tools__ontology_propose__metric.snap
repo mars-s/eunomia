@@ -8,7 +8,6 @@ expression: stable
   "properties": [],
   "metrics": [
     {
-      "revision": 1,
       "kind": "db",
       "name": "total_size_gb",
       "status": "proposed",

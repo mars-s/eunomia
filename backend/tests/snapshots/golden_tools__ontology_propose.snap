@@ -5,7 +5,6 @@ expression: stable
 {
   "kinds": [
     {
-      "revision": 1,
       "kind": "db",
       "status": "proposed",
       "merge_into": null
@@ -13,7 +12,6 @@ expression: stable
   ],
   "links": [
     {
-      "revision": 1,
       "from_kind": "person",
       "label": "owns",
       "to_kind": "db",
@@ -22,7 +20,6 @@ expression: stable
   ],
   "properties": [
     {
-      "revision": 1,
       "kind": "db",
       "name": "size_gb",
       "datatype": "number",

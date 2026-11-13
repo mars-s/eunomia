@@ -513,9 +513,6 @@ fn merge_links(counts: Vec<LinkCount>, rows: Vec<LinkRow>) -> AppResult<Vec<Link
 /// A proposed kind, as an agent or the model sends it.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct KindProposal {
-    /// Revision observed in ontology_get. Zero or omitted allows creation or an identical retry.
-    #[serde(default)]
-    pub revision: i64,
     pub kind: String,
     #[serde(default)]
     pub description: Option<String>,
@@ -532,9 +529,6 @@ pub struct KindProposal {
 /// A proposed link type.
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct LinkProposal {
-    /// Revision observed in ontology_get. Zero or omitted allows creation or an identical retry.
-    #[serde(default)]
-    pub revision: i64,
     pub from_kind: String,
     pub label: String,
     pub to_kind: String,
@@ -548,7 +542,6 @@ pub struct LinkProposal {
 }
 
 struct ValidKind {
-    revision: i64,
     kind: Kind,
     description: Option<String>,
     merge_into: Option<Kind>,
@@ -557,7 +550,6 @@ struct ValidKind {
 }
 
 struct ValidLink {
-    revision: i64,
     key: LinkKey,
     description: Option<String>,
     reason: Option<String>,
@@ -577,7 +569,6 @@ impl KindProposal {
             }
         }
         Ok(ValidKind {
-            revision: activity::proposal_revision(self.revision)?,
             synonyms: property::clean_synonyms(&kind.0, &self.synonyms)?,
             kind,
             description: clean_text("description", self.description.as_deref())?,
@@ -590,7 +581,6 @@ impl KindProposal {
 impl LinkProposal {
     fn validate(&self) -> AppResult<ValidLink> {
         Ok(ValidLink {
-            revision: activity::proposal_revision(self.revision)?,
             key: LinkKey::parse(&self.from_kind, &self.label, &self.to_kind)?,
             description: clean_text("description", self.description.as_deref())?,
             reason: clean_text("reason", self.reason.as_deref())?,
@@ -609,7 +599,6 @@ pub const MAX_PROPOSED_METRICS: usize = 50;
 /// that decision (the proposal did not change it).
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 pub struct ProposedKind {
-    pub revision: i64,
     pub kind: String,
     pub status: Status,
     pub merge_into: Option<String>,
@@ -617,7 +606,6 @@ pub struct ProposedKind {
 
 #[derive(Debug, Clone, Serialize, utoipa::ToSchema)]
 pub struct ProposedLink {
-    pub revision: i64,
     pub from_kind: String,
     pub label: String,
     pub to_kind: String,
@@ -676,25 +664,6 @@ struct Valid {
     metrics: Vec<metric::ValidMetric>,
 }
 
-impl Valid {
-    /// Model-generated changes compare against the profile the model actually saw.
-    fn at_snapshot(mut self, snapshot: &OntologyOut) -> Self {
-        for k in &mut self.kinds {
-            k.revision = snapshot.kinds.iter().find(|old| old.kind == k.kind.0).map_or(0, |old| old.revision);
-        }
-        for l in &mut self.links {
-            l.revision = snapshot.links.iter().find(|old| old.from_kind == l.key.from_kind.0 && old.label == l.key.label.0 && old.to_kind == l.key.to_kind.0).map_or(0, |old| old.revision);
-        }
-        for p in &mut self.properties {
-            p.revision = snapshot.kinds.iter().find(|old| old.kind == p.kind.0).and_then(|old| old.properties.iter().find(|old| old.name == p.name.as_str())).map_or(0, |old| old.revision);
-        }
-        for m in &mut self.metrics {
-            m.revision = snapshot.kinds.iter().find(|old| old.kind == m.kind.0).and_then(|old| old.metrics.iter().find(|old| old.name == m.name.as_str())).map_or(0, |old| old.revision);
-        }
-        self
-    }
-}
-
 async fn apply(db: &OrgDb, vault: &RecordId, valid: Valid, origin: Origin) -> AppResult<ProposeOut> {
     let Valid { kinds, links, properties, metrics } = valid;
     let mut out = ProposeOut::default();
@@ -703,7 +672,6 @@ async fn apply(db: &OrgDb, vault: &RecordId, valid: Valid, origin: Origin) -> Ap
         let row: KindRow = with_retry_dup(|| async {
             let mut res = q::PROPOSE_KIND
                 .on(db)
-                .bind(("proposal_revision", k.revision))
                 .bind(("id", id.clone()))
                 .bind(("vault", vault.clone()))
                 .bind(("kind", k.kind.0.clone()))
@@ -718,14 +686,13 @@ async fn apply(db: &OrgDb, vault: &RecordId, valid: Valid, origin: Origin) -> Ap
         })
         .await?;
         crate::changes::ontology_committed(db, vault);
-        out.kinds.push(ProposedKind { revision: row.revision, kind: row.kind, status: Status::parse(&row.status)?, merge_into: row.merge_into });
+        out.kinds.push(ProposedKind { kind: row.kind, status: Status::parse(&row.status)?, merge_into: row.merge_into });
     }
     for l in links {
         let id = link_rid(vault, &l.key);
         let row: LinkRow = with_retry_dup(|| async {
             let mut res = q::PROPOSE_LINK
                 .on(db)
-                .bind(("proposal_revision", l.revision))
                 .bind(("id", id.clone()))
                 .bind(("vault", vault.clone()))
                 .bind(("from_kind", l.key.from_kind.0.clone()))
@@ -741,7 +708,7 @@ async fn apply(db: &OrgDb, vault: &RecordId, valid: Valid, origin: Origin) -> Ap
         })
         .await?;
         crate::changes::ontology_committed(db, vault);
-        out.links.push(ProposedLink { revision: row.revision, from_kind: row.from_kind, label: row.label, to_kind: row.to_kind, status: Status::parse(&row.status)? });
+        out.links.push(ProposedLink { from_kind: row.from_kind, label: row.label, to_kind: row.to_kind, status: Status::parse(&row.status)? });
     }
     out.properties = property::apply_properties(db, vault, properties, origin).await?;
     out.metrics = metric::apply_metrics(db, vault, metrics, origin).await?;
@@ -785,14 +752,13 @@ pub async fn decide_kind(db: &OrgDb, user: &RecordId, vault: &RecordId, kind: &s
     decider(db, user, vault).await?;
     let kind = Kind::parse(kind)?;
     let id = kind_rid(vault, &kind);
-    let expected_revision = activity::verify_seen(db, &id).await?;
+    activity::verify_seen(db, &id).await?;
     let (status, merge_into) = match decision {
         KindDecision::Describe { description } => {
             let description = clean_text("description", Some(&description))?;
             with_retry_dup(|| async {
                 q::DESCRIBE_KIND
                     .on(db)
-                    .bind(("expected_revision", expected_revision))
                     .bind(("id", id.clone()))
                     .bind(("vault", vault.clone()))
                     .bind(("kind", kind.0.clone()))
@@ -818,7 +784,6 @@ pub async fn decide_kind(db: &OrgDb, user: &RecordId, vault: &RecordId, kind: &s
     with_retry_dup(|| async {
         q::DECIDE_KIND
             .on(db)
-            .bind(("expected_revision", expected_revision))
             .bind(("id", id.clone()))
             .bind(("vault", vault.clone()))
             .bind(("kind", kind.0.clone()))
@@ -872,10 +837,9 @@ pub async fn decide_link(
     decider(db, user, vault).await?;
     let key = LinkKey::parse(from_kind, label, to_kind)?;
     let id = link_rid(vault, &key);
-    let expected_revision = activity::verify_seen(db, &id).await?;
+    activity::verify_seen(db, &id).await?;
     let on = |stmt: &crate::store::Stmt| {
         stmt.on(db)
-            .bind(("expected_revision", expected_revision))
             .bind(("id", id.clone()))
             .bind(("vault", vault.clone()))
             .bind(("from_kind", key.from_kind.0.clone()))
@@ -1141,7 +1105,7 @@ mod tests {
 
     #[test]
     fn a_proposal_cannot_merge_a_kind_into_itself_or_a_built_in_away() {
-        let p = |kind: &str, into: &str| KindProposal { revision: 0, kind: kind.into(), description: None, merge_into: Some(into.into()), synonyms: vec![], reason: None };
+        let p = |kind: &str, into: &str| KindProposal { kind: kind.into(), description: None, merge_into: Some(into.into()), synonyms: vec![], reason: None };
         assert!(p("client", "client").validate().is_err());
         assert!(p("person", "customer").validate().is_err());
         assert!(p("Bad Kind", "customer").validate().is_err());

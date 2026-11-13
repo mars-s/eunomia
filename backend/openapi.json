@@ -13498,7 +13498,6 @@
         "type": "object",
         "description": "A proposed kind after the call: `status` is the row's, so a kind a person already decided shows\nthat decision (the proposal did not change it).",
         "required": [
-          "revision",
           "kind",
           "status"
         ],
@@ -13512,10 +13511,6 @@
               "null"
             ]
           },
-          "revision": {
-            "type": "integer",
-            "format": "int64"
-          },
           "status": {
             "$ref": "#/components/schemas/Status"
           }
@@ -13524,7 +13519,6 @@
       "ProposedLink": {
         "type": "object",
         "required": [
-          "revision",
           "from_kind",
           "label",
           "to_kind",
@@ -13536,10 +13530,6 @@
           },
           "label": {
             "type": "string"
-          },
-          "revision": {
-            "type": "integer",
-            "format": "int64"
           },
           "status": {
             "$ref": "#/components/schemas/Status"
@@ -13553,7 +13543,6 @@
         "type": "object",
         "description": "A proposed metric after the call, with the row's status (a decided one keeps its decision).",
         "required": [
-          "revision",
           "kind",
           "name",
           "status"
@@ -13571,10 +13560,6 @@
           "name": {
             "type": "string"
           },
-          "revision": {
-            "type": "integer",
-            "format": "int64"
-          },
           "status": {
             "$ref": "#/components/schemas/Status"
           }
@@ -13584,7 +13569,6 @@
         "type": "object",
         "description": "A proposed property after the call, with the row's status (a decided one keeps its decision).",
         "required": [
-          "revision",
           "kind",
           "name",
           "datatype",
@@ -13605,10 +13589,6 @@
           },
           "name": {
             "type": "string"
-          },
-          "revision": {
-            "type": "integer",
-            "format": "int64"
           },
           "status": {
             "$ref": "#/components/schemas/Status"

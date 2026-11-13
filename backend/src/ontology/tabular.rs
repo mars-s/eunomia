@@ -723,21 +723,10 @@ pub async fn import_rows(state: &OrgState, user: &RecordId, args: &ImportArgs, o
             }
         }
         if pending.len() >= IMPORT_BATCH {
-            write_values(db, &doc.vault, &doc.id, as_of, origin, std::mem::take(&mut pending)).await?;
+            write_values(db, &doc.vault, &doc.id, &kind.0, &doc.filename, as_of, origin, std::mem::take(&mut pending)).await?;
         }
     }
-    write_values(db, &doc.vault, &doc.id, as_of, origin, pending).await?;
-    crate::tx::with_retry_dup(|| async {
-        q::IMPORT_SUMMARY.on(db)
-            .bind(("vault", doc.vault.clone()))
-            .bind(("source", doc.id.clone()))
-            .bind(("kind", kind.0.clone()))
-            .bind(("entities", (out.created + out.updated + out.targets_created) as i64))
-            .bind(("values", out.values as i64))
-            .bind(("links", out.linked as i64))
-            .await
-    }).await?.check()?;
-    crate::changes::ontology_committed(db, &doc.vault);
+    write_values(db, &doc.vault, &doc.id, &kind.0, &doc.filename, as_of, origin, pending).await?;
     Ok(out)
 }
 
@@ -782,13 +771,15 @@ struct ImportedValue {
 }
 
 /// Writes `values` in one statement, each updated in place on a re-run.
-async fn write_values(db: &OrgDb, vault: &RecordId, document: &RecordId, as_of: Datetime, origin: Origin, values: Vec<ImportedValue>) -> AppResult<()> {
+#[allow(clippy::too_many_arguments)]
+async fn write_values(db: &OrgDb, vault: &RecordId, document: &RecordId, kind: &str, filename: &str, as_of: Datetime, origin: Origin, values: Vec<ImportedValue>) -> AppResult<()> {
     if values.is_empty() {
         return Ok(());
     }
     crate::tx::with_retry_dup(|| async {
         q::UPSERT_IMPORTED_VALUES
             .on(db)
+            .bind(("kind", kind.to_string())).bind(("name", filename.to_string()))
             .bind(("values", values.clone()))
             .bind(("vault", vault.clone()))
             .bind(("as_of", as_of))
@@ -798,6 +789,7 @@ async fn write_values(db: &OrgDb, vault: &RecordId, document: &RecordId, as_of: 
     })
     .await?
     .check()?;
+    crate::changes::ontology_committed(db, vault);
     Ok(())
 }
 
