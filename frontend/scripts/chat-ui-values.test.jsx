@@ -100,3 +100,21 @@ test("shared proportional accessor accepts safe totals only", () => {
     expect(html).not.toMatch(/NaN|Infinity/);
   }
 });
+
+ test("server substituted prose displays literally without interpreting placeholders", () => {
+  const view = {view: "ui", text: "Total 1588.00 AUD", data: {sources: {}}, spec: {root: "copy", elements: {copy: {type: "Text", props: {text: "Total 1588.00 AUD <script> {{sources.sales.amount}}"}}}}};
+  const html = renderToStaticMarkup(<UiView view={view} />);
+  expect(html).toContain("Total 1588.00 AUD &lt;script&gt; {{sources.sales.amount}}");
+  expect(html).not.toContain("<script>");
+});
+
+test("UI prose never reparses Markdown entities or escapes", () => {
+  for (const type of ["Text", "Heading", "Caption", "Badge", "Callout"]) {
+    const text = 'Revenue rose &half;% Count &#49; **bold** \\u0031 \\*one*';
+    const view = {view: "ui", text, data: {sources: {}}, spec: {root: "a", elements: {a: {type, props: {text}}}}};
+    const html = renderToStaticMarkup(<UiView view={view} />);
+    expect(html).toContain('Revenue rose &amp;half;% Count &amp;#49; **bold** \\u0031 \\*one*');
+    expect(html).not.toContain("½");
+    expect(html).not.toContain("<strong>bold</strong>");
+  }
+});

@@ -245,13 +245,65 @@ async fn metric_stored_unit_override_matches_main_fixture() {
 }
 
 #[tokio::test]
-async fn show_view_resolves_chart_columns_and_applied_limit() {
+async fn show_view_resolves_chart_columns_and_bound_prose() {
     let (app,vault) = sample().await;
-    let mut args = json!({"view":"ui","spec":{"root":"a","elements":{"a":{"type":"Line","props":{"title":"Top 5 suppliers","summary":"Amount","data":{"$state":"/sources/sample/rows"}}}}},"sources":{"sample":{"type":"dataset","vault_id":vault,"kind":"sample","properties":["amount"],"limit":5}}});
+    let mut args = json!({"view":"ui","spec":{"root":"a","elements":{"a":{"type":"Line","props":{"title":"Total {{/sources/sample/totals/amount/sum}}","summary":"Amount","data":{"$state":"/sources/sample/rows"}}}}},"sources":{"sample":{"type":"dataset","vault_id":vault,"kind":"sample","properties":["amount"],"limit":5}}});
     let out = ok(app.tool("show_view",args.clone()).await);
+    assert_eq!(out["spec"]["elements"]["a"]["props"]["title"],"Total 31.00 AUD");
+    assert!(out["text"].as_str().unwrap().contains("Total 31.00 AUD"));
     assert_eq!(out["spec"]["elements"]["a"]["props"]["x"],"name");
     assert_eq!(out["spec"]["elements"]["a"]["props"]["y"],"amount");
     assert_eq!(out["spec"]["elements"]["a"]["props"]["series"],json!(["amount"]));
     args["sources"]["sample"]["properties"] = json!(["amount","share"]);
     assert!(app.tool("show_view",args).await.to_string().contains("name y"));
+}
+
+#[tokio::test]
+async fn prose_substitution_reaches_spec_and_terminal_summary() {
+    let (app, vault) = sample().await;
+    let mut args = json!({"view":"ui","spec":{"root":"a","elements":{"a":{"type":"Text","props":{"text":"Total {{sources.sales.totals.amount.sum}}"}}}},"sources":{"sales":{"type":"dataset","vault_id":vault,"kind":"sample","properties":["amount","share"]}}});
+    let out = ok(app.tool("show_view", args.clone()).await);
+    assert_eq!(out["spec"]["elements"]["a"]["props"]["text"], "Total 31.00 AUD");
+    assert!(out["text"].as_str().unwrap().contains("Total 31.00 AUD"));
+    assert!(!out["text"].as_str().unwrap().contains("{{"));
+    for raw in ["Sales rose 35.7%", "Value {{sources.sales.rows[0].missing}}", "Value {{sources.sales.rows[0].name}}"] {
+        args["spec"]["elements"]["a"]["props"]["text"] = json!(raw);
+        let error = app.tool("show_view", args.clone()).await;
+        assert!(error.get("error").is_some(), "{raw}: {error}");
+        assert!(error.to_string().contains("placeholder"), "{error}");
+    }
+}
+
+#[tokio::test]
+async fn invented_query_kind_is_not_a_server_text_token() {
+    let (app, vault) = sample().await;
+    let args = json!({"view":"ui","spec":{"root":"a","elements":{"a":{"type":"Text","props":{"text":"x12000"}}}},"sources":{"sales":{"type":"dataset","vault_id":vault,"kind":"x12000","properties":[]}}});
+    let error = app.tool("show_view", args).await;
+    assert!(error.get("error").is_some(), "{error}");
+    assert!(error.to_string().contains("unsupported raw digits"), "{error}");
+}
+
+#[tokio::test]
+async fn turn_snapshot_refuses_new_names_and_text_values() {
+    use eunomia_backend::views::TURN_STARTED;
+    use surrealdb::types::Datetime;
+    let (app, vault) = sample().await;
+    let before = Datetime::default();
+    let id = ok(app.tool("memory_write",json!({"subject_name":"Truck 7","subject_kind":"sample","text":"New this turn"})).await)["entity"]["id"].clone();
+    ok(app.tool("entity_set_property",json!({"entity_id":id,"property":"label","value":"ISO 27001"})).await);
+    let make = |title: &str| json!({"view":"ui","spec":{"root":"a","elements":{"a":{"type":"Text","props":{"text":title}}}},"sources":{"sample":{"type":"dataset","vault_id":vault,"kind":"sample","properties":["label"]}}});
+    for phrase in ["Truck 7 deliveries", "ISO 27001 compliance"] {
+        let args = make(phrase);
+        let denied = TURN_STARTED.scope(before, app.tool("show_view",args.clone())).await;
+        assert!(denied.get("error").is_some(), "new string authorised digits: {denied}");
+        ok(app.tool("show_view",args).await); // The same phrase is eligible next request.
+    }
+    for name in ["12%", "12"] {
+        ok(app.tool("memory_write",json!({"subject_name":name,"subject_kind":"organisation","text":"Bare numeric name"})).await);
+        let mut args = make(&format!("Revenue rose {name}"));
+        args["sources"]["sample"]["kind"] = json!("organisation");
+        args["sources"]["sample"]["properties"] = json!([]);
+        let denied = app.tool("show_view",args).await;
+        assert!(denied.get("error").is_some(), "bare digits authorised: {denied}");
+    }
 }
