@@ -11,17 +11,6 @@ export function rowsOf(data: unknown): Row[] {
 export function number(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
-// Bounded inputs keep chart products, sums and scale differences finite.
-export const MAX_DRAWABLE = 1e100;
-export function requiredNumber(value: unknown): number {
-  const n = number(value);
-  if (n == null) throw new Error("Missing numeric measurement");
-  return n;
-}
-export function drawable(value: unknown): boolean {
-  const n = number(value);
-  return n != null && Math.abs(n) <= MAX_DRAWABLE;
-}
 export function label(value: unknown): string {
   if (
     value &&
@@ -38,7 +27,7 @@ export function label(value: unknown): string {
       ? String(value)
       : "";
 }
-export function formatted(value: unknown, format?: string, unit?: string | null): string {
+export function formatted(value: unknown, format?: string): string {
   if (value == null) return "none";
   if (format === "date" && typeof value === "string") {
     const date = new Date(value);
@@ -53,11 +42,10 @@ export function formatted(value: unknown, format?: string, unit?: string | null)
         : date.toLocaleDateString();
   }
   const n = number(value);
-  if (n == null && (typeof value === "number" || ["number", "money", "percent"].includes(format ?? ""))) return "none";
   return n == null
     ? label(value)
     : format === "money"
-      ? `${unit === "AUD" || !unit ? "A$" : unit + " "}${formatNumber(n, unit || "AUD")}`
+      ? `A$${formatNumber(n, "AUD")}`
       : format === "percent"
         ? `${formatNumber(n, "%")}%`
         : formatNumber(n, null);

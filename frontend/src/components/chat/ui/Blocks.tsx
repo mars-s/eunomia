@@ -194,7 +194,7 @@ function Block({
                   : "number",
       }))
     : undefined;
-  const selectedColumns =
+  const columns =
     props.columns ||
     inferred ||
     Object.keys(rows[0] || value)
@@ -209,11 +209,6 @@ function Block({
             ? format
             : "text"),
       }));
-  const columns = selectedColumns.map(c => ({
-    ...c,
-    total: "total" in c ? c.total : undefined,
-    format: props.formats?.[c.key] ?? inferred?.find(source => source.key === c.key)?.format ?? c.format,
-  }));
   const totals = scalarObject.safeParse(value.totals);
   const sorted = [...rows].sort((a, b) => {
     if (!sort) return 0;
@@ -241,10 +236,10 @@ function Block({
   let content: ReactNode;
   if (kind === "Stat")
     content = (
-      <div className="text-3xl ui-numeric tabular-nums">
+      <div className="text-3xl font-mono tabular-nums">
         {typeof value.unit === "string"
           ? withUnit(number(value.value), value.unit)
-          : formatted(number(object.success ? value.value : data), format, props.unit)}
+          : formatted(object.success ? value.value : data, format)}
         {number(value.delta) != null && (
           <small className="block text-sm">
             Change {formatted(value.delta, format)}
@@ -265,8 +260,6 @@ function Block({
         )}
       </div>
     );
-  else if (kind === "StatGroup")
-    content = <div className="ui-stat-grid">{rows.flatMap((row, i) => columns.filter(c => number(row[c.key]) != null).map(c => <div className="ui-stat-tile" key={`${i}-${c.key}`}><p>{label(row.name) || c.label}</p><div className="text-3xl ui-numeric">{formatted(row[c.key], c.format, props.units?.[c.key])}</div>{row.name != null && <p>{c.label}</p>}</div>))}</div>;
   else if (kind === "Entity" || kind === "EntityList")
     content = (
       <div className="flex flex-wrap gap-2">
@@ -276,9 +269,9 @@ function Block({
   else if (kind === "Meter") {
     const n = number(value.value),
       max = number(value.max),
-      min = number(value.min);
+      min = number(value.min) ?? 0;
     content =
-      n != null && min != null && max != null && max > min ? (
+      n != null && max != null && max > min ? (
         <>
           <meter
             className="w-full"
@@ -299,11 +292,11 @@ function Block({
       <dl className="grid grid-cols-2 gap-4">
         <div>
           <dt>Before</dt>
-          <dd className="ui-numeric">{formatted(number(value.before), format, props.unit)}</dd>
+          <dd className="font-mono">{formatted(value.before, format)}</dd>
         </div>
         <div>
           <dt>After</dt>
-          <dd className="ui-numeric">{formatted(number(value.after), format, props.unit)}</dd>
+          <dd className="font-mono">{formatted(value.after, format)}</dd>
         </div>
       </dl>
     );
@@ -351,11 +344,11 @@ function Block({
                       key={c.key}
                       className={
                         number(r[c.key]) != null
-                          ? "ui-numeric tabular-nums text-right"
+                          ? "font-mono tabular-nums text-right"
                           : ""
                       }
                     >
-                      {formatted(r[c.key], c.format, props.units?.[c.key])}
+                      {formatted(r[c.key], c.format)}
                     </td>
                   ))}
                 </tr>
@@ -364,14 +357,14 @@ function Block({
             {props.columns?.some((c) => c.total) && (
               <tfoot>
                 <tr>
-                  {columns.map((c, index) => {
+                  {props.columns.map((c, index) => {
                     const total = totals.success
                       ? scalarObject.safeParse(totals.data[c.key])
                       : null;
                     return (
-                      <td key={c.key} className="ui-numeric">
+                      <td key={c.key} className="font-mono">
                         {c.total && total?.success
-                          ? formatted(total.data[c.total], c.total === "count" ? "number" : c.format, props.units?.[c.key])
+                          ? formatted(total.data[c.total], c.format)
                           : c.total
                             ? "none"
                             : index === 0
@@ -450,7 +443,7 @@ function Block({
               <div key={c.key} className="flex justify-between gap-4">
                 <dt>{c.label}</dt>
                 <dd className={number(r[c.key]) != null ? "ui-numeric" : ""}>
-                  {formatted(r[c.key], c.format, props.units?.[c.key])}
+                  {formatted(r[c.key], c.format)}
                 </dd>
               </div>
             ))}
