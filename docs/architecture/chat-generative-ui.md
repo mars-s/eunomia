@@ -54,7 +54,7 @@ Other charts normally bind `/sources/name/rows`. Sankey reads its source key fro
       "properties": ["date", "amount"],
       "group_by": "date",
       "bucket": "month",
-      "aggregates": [{"op": "sum", "property": "amount"}]
+      "aggregates": [{"name": "total", "op": "sum", "property": "amount"}]
     }
   },
   "spec": {
@@ -67,7 +67,7 @@ Other charts normally bind `/sources/name/rows`. Sankey reads its source key fro
           "summary": "Monthly amount from approved properties",
           "data": {"$state": "/sources/items/rows"},
           "x": "date",
-          "y": "sum_amount"
+          "y": "total"
         },
         "children": []
       }

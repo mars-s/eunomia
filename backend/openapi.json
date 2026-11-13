@@ -8411,7 +8411,6 @@
           "min",
           "max",
           "count_distinct",
-          "median",
           "ratio"
         ]
       },

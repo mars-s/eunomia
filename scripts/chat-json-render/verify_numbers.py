@@ -91,7 +91,7 @@ def dataset(query, actual):
                     value = {"sum": lambda: sum(values), "avg": lambda: statistics.mean(values),
                              "min": lambda: min(values), "max": lambda: max(values),
                              "median": lambda: statistics.median(values)}[op]()
-                out[agg.get("name", op.replace("count_distinct", "distinct") + ("_" + agg["property"] if agg.get("property") else ""))] = value
+                out[agg["name"]] = value
             expected.append(out)
     else:
         expected = [{"name": r["name"], **{p: r[p] for p in query["properties"]}} for r in selected]

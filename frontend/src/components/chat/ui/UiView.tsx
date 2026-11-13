@@ -164,14 +164,15 @@ export default function UiView({ view: raw }: { view: unknown }) {
             ? "percent"
             : ["date", "datetime"].includes(c.datatype)
               ? "date"
-              : !["number", "integer"].includes(c.datatype)
+              : c.datatype === "text"
                 ? "text"
                 : "number",
       ]),
     );
     e.props.formats = formats;
     e.props.units = Object.fromEntries((source.data.columns || []).map(c => [c.key, c.unit ?? null]));
-    if (typeof e.props.x === "string") e.props.xFormat = formats[e.props.x] ?? "text";
+    if (typeof e.props.x === "string" && formats[e.props.x] === "date")
+      e.props.xFormat = "date";
     const inferredKey = source.data.columns?.find(c =>
       ["money", "number", "integer", "percent"].includes(c.datatype),
     )?.key;
@@ -185,13 +186,13 @@ export default function UiView({ view: raw }: { view: unknown }) {
     const column = source.data.columns?.find(
       (c) => c.key === (segments[3] === "distributions" ? segments[4] : key),
     );
-    const count = segments[3] === "total_rows" || (segments[3] === "totals" && ["count", "distinct"].includes(segments[5])) || (segments[3] === "metric" && (segments[4] === "n_entities" || (segments[4] === "series" && segments[6] === "n")));
+    const count = segments[3] === "total_rows" || (segments[3] === "totals" && ["count", "distinct"].includes(segments[5]));
     const datatype = count ? "number" : column?.datatype;
     e.props.unit = count ? null : column?.unit ?? source.data.metric?.unit ?? null;
-    e.props.format = count ? "number" : column ? formats[column.key] : "number";
-    if (!count && (datatype === "money" || /^[A-Z]{3}$/.test(source.data.metric?.unit || "")))
+    if (count) e.props.format = "number";
+    if (datatype === "money" || /^[A-Z]{3}$/.test(source.data.metric?.unit || ""))
       e.props.format = "money";
-    else if (!count && (datatype === "percent" || source.data.metric?.unit === "%"))
+    else if (datatype === "percent" || source.data.metric?.unit === "%")
       e.props.format = "percent";
   }
   return (
