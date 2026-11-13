@@ -23,5 +23,3 @@ pub mod mcp;
 pub mod oauth;
 pub mod oidc;
 pub mod ontology;
-
-pub mod diagnostics;

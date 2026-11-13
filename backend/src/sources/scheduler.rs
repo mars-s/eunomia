@@ -188,10 +188,7 @@ pub async fn sync_source(state: &OrgState, owner: &RecordId, key: &str, job: Opt
         Ok(true) => return already_running(key),
         Err(e) => return json!({"source": key, "error": e.message}),
     }
-    let started = std::time::Instant::now();
-    let report = sync_locked(state, owner, key).await;
-    crate::diagnostics::history::record(&state.db.org().key(), &owner.to_string(), key, started, &report);
-    report
+    sync_locked(state, owner, key).await
 }
 
 /// How long after standing down offline the follow-up sync job waits.
@@ -228,21 +225,15 @@ async fn sync_locked(state: &OrgState, owner: &RecordId, key: &str) -> Value {
     let now = surrealdb::types::Datetime::from(Utc::now());
     let cursor = if st.cursor.is_empty() { None } else { Some(st.cursor.clone()) };
 
-    let mut partial = json!({});
     let error = match registry::run_sync(state, owner, key, cursor).await {
-        Ok((report, result)) if report.failed > 0 => {
-            partial = report.as_dict();
-            if let Some(count) = result.provider_skipped { partial["provider_skipped"] = json!(count); }
-            format!(
-                "{} of {} records failed to save; will retry: {}",
-                report.failed,
-                report.failed + report.written + report.skipped,
-                report.errors.first().map(String::as_str).unwrap_or("")
-            )
-        },
+        Ok((report, _)) if report.failed > 0 => format!(
+            "{} of {} records failed to save; will retry: {}",
+            report.failed,
+            report.failed + report.written + report.skipped,
+            report.errors.first().map(String::as_str).unwrap_or("")
+        ),
         Ok((report, result)) => {
             let mut report_value = report.as_dict();
-            if let Some(count) = result.provider_skipped { report_value["provider_skipped"] = json!(count); }
             if !result.warnings.is_empty() { report_value["warnings"] = json!(result.warnings); }
             let statement = match &result.progress {
                 SyncProgress::Complete => store::app::SOURCES_SYNC_OK,
@@ -282,9 +273,7 @@ async fn sync_locked(state: &OrgState, owner: &RecordId, key: &str) -> Value {
     {
         tracing::warn!(source = %key, error = %e, "could not record sync failure");
     }
-    partial["source"] = json!(key);
-    partial["error"] = json!(error);
-    partial
+    json!({"source": key, "error": error})
 }
 
 /// How long a manual sync request waits for its job before answering that the sync is still running.
