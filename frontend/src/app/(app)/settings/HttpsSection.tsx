@@ -1,5 +1,4 @@
 "use client";
-import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
 
 import ErrorLine, { failure, type Failure } from "@/components/ErrorLine";
 import { useState } from "react";
@@ -34,7 +33,9 @@ export function HttpsSection() {
 
   if (!status) {
     return (
-      <LoadingSkeleton label="Loading https" layout="settings" />
+      <div className="flex flex-col gap-5" aria-hidden>
+        <PanelHead title="HTTPS" status={<span className="skeleton block h-4 w-24" />} />
+      </div>
     );
   }
 

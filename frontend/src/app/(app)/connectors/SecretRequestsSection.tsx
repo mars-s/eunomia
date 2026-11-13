@@ -1,5 +1,4 @@
 "use client";
-import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -50,7 +49,9 @@ function Requests() {
       <div className="ledger overflow-hidden">
         <div className="hairline-rows">
           {requests.isLoading && (
-            <LoadingSkeleton label="Loading secret requests" rows={1} />
+            <div className="px-4 h-10 flex items-center" aria-hidden>
+              <span className="skeleton h-3 w-48" />
+            </div>
           )}
           {requests.data && rows.length === 0 && (
             <p className="px-4 py-4 text-[13px]" style={{ color: "var(--ink-dim)" }}>

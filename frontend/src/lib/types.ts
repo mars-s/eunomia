@@ -127,11 +127,6 @@ export type Snapshot = {
 };
 
 export type SyncStatus = {
-  last_report?: {
-    status?: string;
-    message?: string;
-    warnings?: string[];
-  };
   cursor: string;
   last_run: string | null;
   last_ok: string | null;

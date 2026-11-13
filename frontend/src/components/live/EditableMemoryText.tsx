@@ -1,5 +1,4 @@
 "use client";
-import { haptic } from "@/lib/haptics";
 
 import { PencilSimpleIcon } from "@phosphor-icons/react/ssr";
 import { useState } from "react";
@@ -43,7 +42,6 @@ export default function EditableMemoryText({ memory, onSaved, disabled }: { memo
     setError(null);
     try {
       await update.mutateAsync({ memoryId: memory.id, text });
-      haptic("success");
       setEditing(false);
       onSaved?.();
     } catch (err) {

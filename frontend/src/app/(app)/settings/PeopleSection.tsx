@@ -1,5 +1,4 @@
 "use client";
-import LoadingSkeleton from "@/components/ui/LoadingSkeleton";
 
 import { useState } from "react";
 import { XIcon } from "@phosphor-icons/react/ssr";
@@ -149,7 +148,9 @@ function PersonTokens({ p, onError }: { p: Person; onError: (f: Failure | null) 
   if (query.isError) return <ErrorLine error={failure(query.error, `Could not load ${p.email}'s tokens. Reload to try again.`)} />;
   if (!tokens)
     return (
-<LoadingSkeleton label="Loading tokens" rows={2} />
+      <p className="py-2 text-[13px]" style={{ color: "var(--ink-dim)" }}>
+        Loading tokens…
+      </p>
     );
   if (tokens.length === 0)
     return (
@@ -275,7 +276,9 @@ export function PeopleSection() {
       {/* Phones: one stacked entry per person (email, then the facts, then the actions), no sideways scroll. */}
       <ul className="sm:hidden hairline-rows text-[13px]" aria-label="People">
         {people === null ? (
-<li><LoadingSkeleton label="Loading people" /></li>
+          <li className="py-3" style={{ color: "var(--ink-dim)" }}>
+            Loading…
+          </li>
         ) : people.length === 0 ? (
           <li className="py-6 text-center" style={{ color: "var(--ink-dim)" }}>
             No accounts yet.

@@ -390,14 +390,11 @@ pub const METRIC_ENTITIES: Stmt = Stmt::new(
 );
 /// Latest value per selected entity/property pair at the cutoff. The index avoids unrelated
 /// histories; created_at breaks ties within each pair. Every input is a parameter.
-macro_rules! latest_point {
-    () => { r#"SELECT id, entity, property, value_num, value_text, value_bool, value_date, unit, as_of, created_at, source FROM entity_property
-        WHERE entity = $e AND property = $p AND vault = $vault AND as_of <= $as_of ORDER BY as_of DESC, created_at DESC, id DESC LIMIT 1"# };
-}
-/// One shared selection for metric, chat, profile and indexed directory probes.
-pub const LATEST_POINT: &str = latest_point!();
 pub const LATEST_VALUES: Stmt = Stmt::new("ontology.latest_values",
-    concat!("RETURN array::flatten(array::flatten($ids.map(|$e| $props.map(|$p| (", latest_point!(), ")))));"));
+    r#"RETURN array::flatten(array::flatten($ids.map(|$e| $props.map(|$p| (
+        SELECT entity, property, value_num, value_text, value_bool, value_date, unit, as_of, created_at FROM entity_property
+        WHERE entity = $e AND property = $p AND vault = $vault AND as_of <= $as_of ORDER BY as_of DESC, created_at DESC LIMIT 1
+    )))));"#);
 
 // Main metric loading deliberately omits stored unit overrides. Datasets retain them.
 pub const LATEST_METRIC_VALUES: Stmt = Stmt::new("ontology.latest_metric_values",
@@ -556,23 +553,7 @@ pub const UI_ENTITIES: Stmt = Stmt::new("ontology.ui_entities",
 pub const UI_LINKS: Stmt = Stmt::new("ontology.ui_links",
     "SELECT in AS entity, out AS target, label FROM relates_to WHERE in IN $ids AND in.vault = $vault AND out.vault = $vault AND label IN $labels LIMIT 5001");
 
-/// Only pre-request persisted strings can authorise raw digit phrases.
-pub const UI_PROSE_STRINGS: Stmt = Stmt::new("ontology.ui_prose_strings", r#"SELECT name FROM person WHERE vault IN $vaults AND created_at < $before AND (updated_at = NONE OR updated_at < $before) AND (name IN $strings);
-SELECT name FROM organisation WHERE vault IN $vaults AND created_at < $before AND (updated_at = NONE OR updated_at < $before) AND (name IN $strings);
-SELECT name FROM location WHERE vault IN $vaults AND created_at < $before AND (updated_at = NONE OR updated_at < $before) AND (name IN $strings);
-SELECT name FROM repository WHERE vault IN $vaults AND created_at < $before AND (updated_at = NONE OR updated_at < $before) AND (name IN $strings);
-SELECT name FROM file WHERE vault IN $vaults AND created_at < $before AND (updated_at = NONE OR updated_at < $before) AND (name IN $strings);
-SELECT name FROM symbol WHERE vault IN $vaults AND created_at < $before AND (updated_at = NONE OR updated_at < $before) AND (name IN $strings);
-SELECT name, kind FROM entity WHERE vault IN $vaults AND created_at < $before AND (updated_at = NONE OR updated_at < $before) AND (name IN $strings OR kind IN $strings);
-SELECT label FROM relates_to WHERE in.vault IN $vaults AND created_at < $before AND (updated_at = NONE OR updated_at < $before) AND (label IN $strings);
-SELECT kind FROM ontology_kind WHERE vault IN $vaults AND created_at < $before AND (updated_at = NONE OR updated_at < $before) AND (kind IN $strings);
-SELECT name FROM ontology_property WHERE vault IN $vaults AND created_at < $before AND (updated_at = NONE OR updated_at < $before) AND (name IN $strings);
-SELECT label FROM ontology_link WHERE vault IN $vaults AND created_at < $before AND (updated_at = NONE OR updated_at < $before) AND (label IN $strings);
-SELECT name FROM ontology_metric WHERE vault IN $vaults AND created_at < $before AND (updated_at = NONE OR updated_at < $before) AND (name IN $strings);
-SELECT value_text FROM entity_property WHERE vault IN $vaults AND created_at < $before AND (updated_at = NONE OR updated_at < $before) AND (value_text IN $strings);"#);
-
 pub const ALL: &[&Stmt] = &[
-    &UI_PROSE_STRINGS,
     &UI_LINKS,
     &UI_ENTITIES,
     &PROFILE,
