@@ -189,7 +189,9 @@ function Block({
               ? "percent"
               : ["date", "datetime"].includes(c.datatype)
                 ? "date"
-                : format,
+                : c.datatype === "text"
+                  ? "text"
+                  : "number",
       }))
     : undefined;
   const columns =
@@ -197,7 +199,16 @@ function Block({
     inferred ||
     Object.keys(rows[0] || value)
       .filter((k) => k !== "entity_id")
-      .map((key) => ({ key, label: key.replaceAll("_", " "), format }));
+      .map((key) => ({
+        key,
+        label: key.replaceAll("_", " "),
+        format:
+          props.formats?.[key] ||
+          (number(value[key]) != null ||
+          rows.some((r) => number(r[key]) != null)
+            ? format
+            : "text"),
+      }));
   const totals = scalarObject.safeParse(value.totals);
   const sorted = [...rows].sort((a, b) => {
     if (!sort) return 0;
@@ -225,10 +236,10 @@ function Block({
   let content: ReactNode;
   if (kind === "Stat")
     content = (
-      <div className="text-3xl font-mono tabular-nums">
+      <div className="text-3xl ui-numeric tabular-nums">
         {typeof value.unit === "string"
           ? withUnit(number(value.value), value.unit)
-          : formatted(object.success ? value.value : data, format)}
+          : formatted(object.success ? value.value : data, format, props.unit)}
         {number(value.delta) != null && (
           <small className="block text-sm">
             Change {formatted(value.delta, format)}
@@ -249,6 +260,8 @@ function Block({
         )}
       </div>
     );
+  else if (kind === "StatGroup")
+    content = <div className="ui-stat-grid">{rows.flatMap((row, i) => columns.filter(c => number(row[c.key]) != null).map(c => <div className="ui-stat-tile" key={`${i}-${c.key}`}><p>{label(row.name) || c.label}</p><div className="text-3xl ui-numeric">{formatted(row[c.key], c.format, props.units?.[c.key])}</div>{row.name != null && <p>{c.label}</p>}</div>))}</div>;
   else if (kind === "Entity" || kind === "EntityList")
     content = (
       <div className="flex flex-wrap gap-2">
@@ -281,11 +294,11 @@ function Block({
       <dl className="grid grid-cols-2 gap-4">
         <div>
           <dt>Before</dt>
-          <dd className="font-mono">{formatted(value.before, format)}</dd>
+          <dd className="ui-numeric">{formatted(value.before, format)}</dd>
         </div>
         <div>
           <dt>After</dt>
-          <dd className="font-mono">{formatted(value.after, format)}</dd>
+          <dd className="ui-numeric">{formatted(value.after, format)}</dd>
         </div>
       </dl>
     );
@@ -329,8 +342,15 @@ function Block({
               {sorted.slice(page * 10, page * 10 + 10).map((r, i) => (
                 <tr key={i}>
                   {columns.map((c) => (
-                    <td key={c.key} className="font-mono tabular-nums">
-                      {formatted(r[c.key], c.format)}
+                    <td
+                      key={c.key}
+                      className={
+                        number(r[c.key]) != null
+                          ? "ui-numeric tabular-nums text-right"
+                          : ""
+                      }
+                    >
+                      {formatted(r[c.key], c.format, props.units?.[c.key])}
                     </td>
                   ))}
                 </tr>
@@ -344,9 +364,9 @@ function Block({
                       ? scalarObject.safeParse(totals.data[c.key])
                       : null;
                     return (
-                      <td key={c.key} className="font-mono">
+                      <td key={c.key} className="ui-numeric">
                         {c.total && total?.success
-                          ? formatted(total.data[c.total], c.format)
+                          ? formatted(total.data[c.total], c.total === "count" ? "number" : c.format, props.units?.[c.key])
                           : c.total
                             ? "none"
                             : index === 0
@@ -360,64 +380,84 @@ function Block({
             )}
           </table>
         </div>
-        <nav aria-label="Table pages" className="flex gap-3">
-          <button
-            className="pill"
-            disabled={page === 0}
-            onClick={() => setPage(page - 1)}
-          >
-            Previous
-          </button>
-          <span>
-            {page + 1} / {Math.ceil(rows.length / 10)}
-          </span>
-          <button
-            className="pill"
-            disabled={(page + 1) * 10 >= rows.length}
-            onClick={() => setPage(page + 1)}
-          >
-            Next
-          </button>
-        </nav>
+        {rows.length > 10 && (
+          <nav aria-label="Table pages" className="flex items-center gap-3">
+            <button
+              className="pill"
+              disabled={page === 0}
+              onClick={() => setPage(page - 1)}
+            >
+              Previous
+            </button>
+            <span>
+              {page + 1} / {Math.ceil(rows.length / 10)}
+            </span>
+            <button
+              className="pill"
+              disabled={(page + 1) * 10 >= rows.length}
+              onClick={() => setPage(page + 1)}
+            >
+              Next
+            </button>
+          </nav>
+        )}
       </>
     ) : (
       <p>No rows to show.</p>
     );
   else if (kind === "Timeline")
     content = (
-      <ol className="space-y-3">
+      <ol className="ui-timeline">
         {rows.map((r, i) => (
           <li key={i}>
-            <time>{formatted(r[props.x || "date"], "date")}</time>
-            <p>{label(r[props.y || "name"])}</p>
+            <time>
+              {formatted(
+                r[props.x || "date"],
+                props.xFormat || props.formats?.[props.x || "date"] || "date",
+              )}
+            </time>
+            <p>
+              {formatted(
+                r[props.y || "name"],
+                props.formats?.[props.y || "name"] || format,
+              )}
+            </p>
           </li>
         ))}
       </ol>
     );
   else
     content = (
-      <dl
-        className={kind === "StatGroup" ? "ui-grid ui-grid-two" : "space-y-2"}
+      <div
+        className={
+          kind === "StatGroup" ? "ui-grid ui-grid-two" : "ui-definition-groups"
+        }
       >
         {(rows.length ? rows : [value]).map((r, i) => (
-          <div key={i}>
+          <dl
+            key={i}
+            className="ui-definitions"
+            aria-label={
+              rows.length > 1 ? label(r.name) || `Row ${i + 1}` : title
+            }
+          >
             {columns.map((c) => (
               <div key={c.key} className="flex justify-between gap-4">
                 <dt>{c.label}</dt>
-                <dd className="font-mono tabular-nums">
-                  {formatted(r[c.key], c.format)}
+                <dd className={number(r[c.key]) != null ? "ui-numeric" : ""}>
+                  {formatted(r[c.key], c.format, props.units?.[c.key])}
                 </dd>
               </div>
             ))}
-          </div>
+          </dl>
         ))}
-      </dl>
+      </div>
     );
   return (
     <section className="ui-section" data-ui-component={kind}>
       <h3 className="font-medium">{title}</h3>
       {content}
-      <p className="text-xs text-[var(--ink-dim)]">{summary}</p>
+      <p className="ui-summary">{summary}</p>
     </section>
   );
 }
